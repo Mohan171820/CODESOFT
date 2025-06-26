@@ -1,0 +1,216 @@
+/// Main.java ///
+
+import java.util.*;
+
+public class Main {
+    public static void main(String[] args) throws Exception {
+        Scanner sc = new Scanner(System.in);
+        StudentDAO dao = new StudentDAO();
+
+        while (true) {
+            System.out.println("\n1. Add\n2. View All\n3. Update Name\n4. Delete\n5. Search\n6. Exit");
+            System.out.print("Enter choice: ");
+            int ch = sc.nextInt();
+            sc.nextLine();
+
+            switch (ch) {
+                case 1:
+                    System.out.print("Name: ");
+                    String name = sc.nextLine().trim();
+                    if (name.isEmpty()) {
+                        System.out.println("Name cannot be empty.");
+                        break;
+                    }
+
+                    System.out.print("Course: ");
+                    String course = sc.nextLine().trim();
+                    if (course.isEmpty()) {
+                        System.out.println("Course cannot be empty.");
+                        break;
+                    }
+
+                    System.out.print("Marks (0-100): ");
+                    int marks = sc.nextInt();
+                    if (marks < 0 || marks > 100) {
+                        System.out.println("Marks must be between 0 and 100.");
+                        break;
+                    }
+
+                    dao.addStudent(new Student(0, name, course, marks));
+                    System.out.println("Student Added!");
+                    break;
+
+                case 2:
+                    for (Student s : dao.getAllStudents()) {
+                        System.out.println(s);
+                    }
+                    break;
+
+                case 3:
+                    System.out.print("ID to Update: ");
+                    int uid = sc.nextInt();
+                    sc.nextLine();
+                    System.out.print("New Name: ");
+                    String newName = sc.nextLine().trim();
+                    if (newName.isEmpty()) {
+                        System.out.println("Name cannot be empty.");
+                        break;
+                    }
+                    dao.updateStudent(uid, newName);
+                    System.out.println("Updated!");
+                    break;
+
+                case 4:
+                    System.out.print("ID to Delete: ");
+                    int did = sc.nextInt();
+                    dao.deleteStudent(did);
+                    System.out.println("Deleted!");
+                    break;
+
+                case 5:
+                    System.out.print("Enter ID or Name to search: ");
+                    String input = sc.nextLine().trim();
+                    List<Student> results = dao.searchStudent(input);
+                    if (results.isEmpty()) {
+                        System.out.println("No matching student found.");
+                    } else {
+                        for (Student s : results) {
+                            System.out.println(s);
+                        }
+                    }
+                    break;
+
+                case 6:
+                    System.out.println("Bye!");
+                    return;
+                default:
+                    System.out.println("Invalid Choice");
+            }
+        }
+    }
+}
+
+
+
+
+
+/// StudentDAO.java/// 
+
+
+import java.sql.*;
+import java.util.*;
+
+public class StudentDAO {
+    private Connection con;
+
+    public StudentDAO() throws Exception {
+        con = DriverManager.getConnection("jdbc:postgresql://localhost:5432/Store", "postgres", "Nani898501");
+    }
+
+    public void addStudent(Student s) throws SQLException {
+        String sql = "INSERT INTO students(name, course, marks) VALUES (?, ?, ?)";
+        PreparedStatement ps = con.prepareStatement(sql);
+        ps.setString(1, s.getName());
+        ps.setString(2, s.getCourse());
+        ps.setInt(3, s.getMarks());
+        ps.executeUpdate();
+    }
+
+    public List<Student> getAllStudents() throws SQLException {
+        List<Student> list = new ArrayList<>();
+        Statement st = con.createStatement();
+        ResultSet rs = st.executeQuery("SELECT * FROM students");
+
+        while (rs.next()) {
+            list.add(new Student(
+                    rs.getInt("id"),
+                    rs.getString("name"),
+                    rs.getString("course"),
+                    rs.getInt("marks")
+            ));
+        }
+        return list;
+    }
+
+    public void updateStudent(int id, String name) throws SQLException {
+        String sql = "UPDATE students SET name=? WHERE id=?";
+        PreparedStatement ps = con.prepareStatement(sql);
+        ps.setString(1, name);
+        ps.setInt(2, id);
+        ps.executeUpdate();
+    }
+
+    public void deleteStudent(int id) throws SQLException {
+        String sql = "DELETE FROM students WHERE id=?";
+        PreparedStatement ps = con.prepareStatement(sql);
+        ps.setInt(1, id);
+        ps.executeUpdate();
+    }
+
+    public List<Student> searchStudent(String input) throws SQLException {
+        List<Student> list = new ArrayList<>();
+        String sql;
+        PreparedStatement ps;
+
+        try {
+            int id = Integer.parseInt(input);
+            sql = "SELECT * FROM students WHERE id=?";
+            ps = con.prepareStatement(sql);
+            ps.setInt(1, id);
+        } catch (NumberFormatException e) {
+            sql = "SELECT * FROM students WHERE LOWER(name) LIKE ?";
+            ps = con.prepareStatement(sql);
+            ps.setString(1, "%" + input.toLowerCase() + "%");
+        }
+
+        ResultSet rs = ps.executeQuery();
+        while (rs.next()) {
+            list.add(new Student(
+                    rs.getInt("id"),
+                    rs.getString("name"),
+                    rs.getString("course"),
+                    rs.getInt("marks")
+            ));
+        }
+        return list;
+    }
+}
+
+
+/// Student.java ///
+
+
+public class Student {
+    private int id;
+    private String name;
+    private String course;
+    private int marks;
+
+    public Student(int id, String name, String course, int marks) {
+        this.id = id;
+        this.name = name;
+        this.course = course;
+        this.marks = marks;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public String getCourse() {
+        return course;
+    }
+
+    public int getMarks() {
+        return marks;
+    }
+
+    public int getId() {
+        return id;
+    }
+
+    @Override
+    public String toString() {
+        return id + " | " + name + " | " + course + " | " + marks;
+    }
+}
